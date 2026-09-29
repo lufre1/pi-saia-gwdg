@@ -1,0 +1,5 @@
+# Generated installer (never edit directly)
+install-pi-saia-gwdg.sh
+
+# Backup directories
+*.bak-*

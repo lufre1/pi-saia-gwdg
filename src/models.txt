@@ -1,0 +1,14 @@
+apertus-70b-instruct-2509
+devstral-2-123b-instruct-2512
+qwen3.8-27b
+deepseek-v4-flash-0731
+glm-5.3-flash
+qwen3-coder-next
+qwen3-omni-30b-a3b-instruct
+mistral-medium-3.5-128b
+qwen3.5-397b-a17b
+gemma-4-31b-it
+qwen3.6-35b-a3b
+meta-llama-3.1-8b-instruct
+openai-gpt-oss-120b
+qwen3-30b-a3b-instruct-2507

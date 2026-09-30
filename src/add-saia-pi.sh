@@ -21,6 +21,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODELS_FILE="${SCRIPT_DIR}/models.txt"
 
 # ── Parse arguments ──────────────────────────────────────────────────
+ASSUME_YES=0
 KEY=""
 KEY_FILE=""
 SAIA_KEY=""
@@ -30,6 +31,10 @@ while [[ $# -gt 0 ]]; do
     --key)
       KEY="$2"
       shift 2
+      ;;
+    -y|--yes)
+      ASSUME_YES=1
+      shift
       ;;
     --key-file)
       KEY_FILE="$2"
@@ -41,6 +46,7 @@ while [[ $# -gt 0 ]]; do
       echo "Options:"
       echo "  --key <value>       SAIA API key (overrides SAIA_API_KEY env)"
       echo "  --key-file <path>   File containing the SAIA API key"
+      echo "  -y, --yes           Install the agent without asking (for non-TTY runs)"
       echo "  -h, --help          Show this help"
       echo ""
       echo "The API key is taken from:"
@@ -159,6 +165,8 @@ PI_BIN="$HOME/.pi/agent/bin/pi"
 if ! command -v pi &>/dev/null; then
   if [[ -x "$PI_BIN" ]]; then
     export PATH="$HOME/.pi/agent/bin:$PATH"
+  elif [[ $ASSUME_YES -eq 1 ]]; then
+    :  # --yes: install without asking
   elif [[ -t 0 ]]; then
     read -r -p "pi not found — install it via the official installer? [y/N] " reply
     if [[ $reply != [yY]* ]]; then
@@ -256,7 +264,9 @@ fi
 {
   echo "{"
   echo "  \"defaultProvider\": \"gwdg-saia\","
-  echo "  \"defaultModel\": \"gwdg-saia/$DEFAULT_MODEL\""
+  # Bare model id: pi resolves getModel(defaultProvider, defaultModel), a
+  # "provider/id" value never matches and pi falls back to the first model.
+  echo "  \"defaultModel\": \"$DEFAULT_MODEL\""
   echo "}"
 } > "$SETTINGS_JSON"
 chmod 600 "$SETTINGS_JSON"

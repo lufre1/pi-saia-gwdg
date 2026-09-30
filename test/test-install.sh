@@ -61,7 +61,7 @@ grep -q '"id": "qwen3-coder-next"' "$MODELS_JSON" \
 [[ -f "$SETTINGS_JSON" ]] || fail "settings.json not written"
 grep -q '"defaultProvider": "gwdg-saia"' "$SETTINGS_JSON" \
   || fail "defaultProvider missing"
-grep -q '"defaultModel": "gwdg-saia/deepseek-v4-flash-0731"' "$SETTINGS_JSON" \
+grep -q '"defaultModel": "deepseek-v4-flash-0731"' "$SETTINGS_JSON" \
   || fail "defaultModel missing"
 
 grep -q "export SAIA_API_KEY='dummy'" "$SAIA_SHELL_RC" \

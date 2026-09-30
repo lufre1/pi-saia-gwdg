@@ -126,7 +126,7 @@ The default model is set in `~/.pi/agent/settings.json`:
 ```json
 {
   "defaultProvider": "gwdg-saia",
-  "defaultModel": "gwdg-saia/deepseek-v4-flash-0731"
+  "defaultModel": "deepseek-v4-flash-0731"
 }
 ```
 

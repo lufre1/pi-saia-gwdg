@@ -15,13 +15,20 @@ SAIA_BASE_URL="${SAIA_BASE_URL:-https://chat-ai.academiccloud.de/v1}"
 # and persisted to the user's shell rc so Pi can resolve it at runtime. The raw
 # key is never written into models.json.
 #
+# With extra keys (SAIA_API_KEYS_EXTRA / --extra-keys / --extra-keys-file) pi
+# is pointed at the local saia-keyring proxy instead, which swaps to the next
+# key when the active one is revoked, drained or rate limited (saia-keyring.sh).
+#
 # Usage:
 #   SAIA_API_KEY="your-key" ./add-saia-pi.sh
 #   ./add-saia-pi.sh --key "your-key"
 #   ./add-saia-pi.sh --key-file ~/.local/share/opencode/auth.json
+#   SAIA_API_KEYS_EXTRA="key2,key3" ./add-saia-pi.sh --key "your-key"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODELS_FILE="${SCRIPT_DIR}/models.txt"
+# shellcheck source=saia-keyring.sh
+source "${SCRIPT_DIR}/saia-keyring.sh"
 
 # ── Parse arguments ──────────────────────────────────────────────────
 ASSUME_YES=0
@@ -43,6 +50,10 @@ while [[ $# -gt 0 ]]; do
       KEY_FILE="$2"
       shift 2
       ;;
+    --extra-keys|--extra-keys-file|--keyring|--no-keyring)
+      keyring_arg "$@"
+      shift "$KEYRING_SHIFT"
+      ;;
     -h|--help)
       echo "Usage: SAIA_API_KEY=... ./add-saia-pi.sh [--key <key> | --key-file <path>]"
       echo ""
@@ -50,6 +61,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --key <value>       SAIA API key (overrides SAIA_API_KEY env)"
       echo "  --key-file <path>   File containing the SAIA API key"
       echo "  -y, --yes           Install the agent without asking (for non-TTY runs)"
+      keyring_usage
       echo "  -h, --help          Show this help"
       echo ""
       echo "The API key is taken from:"
@@ -221,6 +233,10 @@ else
   echo "WARNING: no shell rc detected — export SAIA_API_KEY yourself before running pi." >&2
 fi
 
+# ── Automatic key swap (2+ keys) ─────────────────────────────────────
+# Sets SAIA_EFFECTIVE_BASE_URL: the local proxy when it is up, else SAIA itself.
+keyring_setup "$SAIA_KEY"
+
 # ── Write ~/.pi/agent/models.json ────────────────────────────────────
 AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 MODELS_JSON="$AGENT_DIR/models.json"
@@ -244,7 +260,7 @@ MODELS_JSON_ARRAY="${MODELS_JSON_ARRAY%,*\n}"
   echo "{"
   echo "  \"providers\": {"
   echo "    \"gwdg-saia\": {"
-  echo "      \"baseUrl\": \"$SAIA_BASE_URL\","
+  echo "      \"baseUrl\": \"$SAIA_EFFECTIVE_BASE_URL\","
   echo "      \"api\": \"openai-completions\","
   echo "      \"apiKey\": \"\$SAIA_API_KEY\","
   echo "      \"models\": ["
@@ -277,7 +293,7 @@ chmod 600 "$SETTINGS_JSON"
 echo ""
 echo "✓ GWDG SAIA provider configured for pi!"
 echo "  Agent dir: $AGENT_DIR"
-echo "  Base URL: $SAIA_BASE_URL"
+echo "  Base URL: $SAIA_EFFECTIVE_BASE_URL"
 echo "  Default model: gwdg-saia/$DEFAULT_MODEL"
 echo "  Models: ${#MODELS[@]} ready SAIA models"
 echo ""

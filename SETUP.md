@@ -134,6 +134,41 @@ The default model is set in `~/.pi/agent/settings.json`:
 `$SAIA_API_KEY` (Pi env interpolation) and persisted to your shell rc
 (`~/.bashrc`, `~/.zshrc`, or `~/.profile`) as `export SAIA_API_KEY='...'`.
 
+## Multiple keys: automatic key swap
+
+SAIA rate limits are per key (30/min, 200/hour, 1000/day, 3000/month). Give the
+installer extra keys and Pi swaps to the next one by itself when the active key is
+revoked (401/403), drained (its hour/day/month budget nearly used up) or rate limited
+(429) — the same rotation the opencode setup does.
+
+```bash
+# Extra keys via the environment, so they never show up in `ps`
+SAIA_API_KEYS_EXTRA="key2,key3" bash install-pi-saia-gwdg.sh --yes
+
+# Or reuse the extra keys of an opencode setup
+bash install-pi-saia-gwdg.sh --yes --extra-keys-file ~/.local/share/opencode/saia-gwdg-keys.json
+```
+
+With 2+ keys the installer starts **saia-keyring**, a small local proxy
+(`~/.local/share/saia-keyring/saia_keyring.py`, stdlib Python 3), and points Pi's
+`baseUrl` at `http://127.0.0.1:8788/v1` instead of SAIA. Pi keeps sending its usual
+key; the proxy only serves requests carrying one of the configured keys and forwards
+them on the active key. Every harness installed with extra keys shares the same proxy
+and key list. Keys are only swapped before a response starts — a stream in progress is
+never cut over.
+
+| What | Where |
+|------|-------|
+| Keys | `~/.config/saia-keyring/keyring.json` (chmod 600), primary key first. A reinstall without extra keys keeps the stored ones; a changed list is backed up to `keyring.json.bak-<timestamp>` |
+| Status | `saia-keyring status` — per-key budget, the active key, rejected keys |
+| Log | `~/.cache/saia-keyring/proxy.log` |
+| Service | systemd user unit `saia-keyring` (Linux), launchd agent `de.gwdg.saia-keyring` (macOS), otherwise a line in your shell rc |
+| Turn off | re-run with `--no-keyring`: Pi talks to SAIA directly again |
+
+With a single key nothing changes: Pi talks to SAIA directly, as before. When every
+key is out, Pi shows why — e.g. `All 3 SAIA key(s) rejected by SAIA (...) — the key(s)
+are revoked or expired`.
+
 ## Troubleshooting
 
 ### Models not appearing in `/model`
@@ -176,7 +211,9 @@ your PATH, add `~/bin` to it.
 
 ## Advanced: Regenerate the installer
 
-If you modify `src/add-saia-pi.sh` or `src/models.txt`, regenerate the installer:
+If you modify `src/add-saia-pi.sh` or `src/models.txt`, regenerate the installer.
+`src/saia_keyring.py` and `src/saia-keyring.sh` are vendored from
+`opencode-extras/keyring/` — change them there and run its `keyring/sync.sh`.
 
 ```bash
 ./build.sh

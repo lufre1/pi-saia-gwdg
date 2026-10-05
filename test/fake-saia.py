@@ -8,12 +8,16 @@ the running request count to $COUNT_FILE after every chat request.
   FAKE_FAIL_COUNT   how many 503s to serve before succeeding (default 3)
   COUNT_FILE        path to write the chat-request count to (default ./count)
   REPLY             the canned assistant reply (default OK-FAKE-RESUME)
+  FAKE_DEAD_KEYS    comma-separated bearer keys answered with 401, like a revoked key
+  SEEN_FILE         append the bearer key of every request to this file
 """
 import http.server, json, os, sys, threading
 
 FAIL_COUNT = int(os.environ.get("FAKE_FAIL_COUNT", "3"))
 COUNT_FILE = os.environ.get("COUNT_FILE", "count")
 REPLY = os.environ.get("REPLY", "OK-FAKE-RESUME")
+DEAD_KEYS = {k for k in os.environ.get("FAKE_DEAD_KEYS", "").split(",") if k}
+SEEN_FILE = os.environ.get("SEEN_FILE")
 
 lock = threading.Lock()
 calls = 0
@@ -41,7 +45,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def rejected(self):
+        """Record the bearer key; answer 401 if it is one of FAKE_DEAD_KEYS."""
+        key = (self.headers.get("Authorization") or "")[len("Bearer "):]
+        if SEEN_FILE:
+            with lock, open(SEEN_FILE, "a") as f:
+                f.write(key + "\n")
+        if key in DEAD_KEYS:
+            self.send(401, json.dumps({"error": {"message": "invalid key",
+                                                 "type": "authentication_error"}}))
+            return True
+        return False
+
     def do_GET(self):
+        if self.rejected():
+            return
         if self.path.rstrip("/").endswith("/models"):
             self.send(200, json.dumps({"object": "list", "data": [
                 {"id": "fake-model", "object": "model", "owned_by": "fake"}]}))
@@ -50,6 +68,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
         self.rfile.read(int(self.headers.get("Content-Length") or 0))
+        if self.rejected():
+            return
         if not self.path.rstrip("/").endswith("/chat/completions"):
             return self.send(404, json.dumps({"error": "not found"}))
 

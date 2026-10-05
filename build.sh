@@ -2,7 +2,8 @@
 #
 # build.sh — pack the live SAIA config into install-pi-saia-gwdg.sh
 #
-# Reads the current src/add-saia-pi.sh and src/models.txt and
+# Reads the current src/add-saia-pi.sh, src/models.txt and the vendored
+# keyring (src/saia_keyring.py, src/saia-keyring.sh — from opencode-extras) and
 # emits a single self-contained installer that can be copied to other devices.
 # Rerun this after ANY change to those files, and commit both.
 #
@@ -13,6 +14,8 @@ OUT="install-pi-saia-gwdg.sh"
 MANIFEST=(
   src/add-saia-pi.sh
   src/models.txt
+  src/saia-keyring.sh
+  src/saia_keyring.py
 )
 
 # ── Sanity checks ────────────────────────────────────────────────────
@@ -72,12 +75,20 @@ Options:
   -y, --yes           answer yes to prompts (e.g. installing pi)
       --key <value>   SAIA API key (overrides SAIA_API_KEY env)
       --key-file <p>  file containing the SAIA API key
+      --extra-keys <k2,k3>      extra SAIA keys for automatic failover
+                                (or SAIA_API_KEYS_EXTRA, which keeps them out of ps)
+      --extra-keys-file <path>  extra keys from {"keys": [...]} (opencode's
+                                saia-gwdg-keys.json) or one key per line
+      --keyring / --no-keyring  force the key-rotating proxy on / off
   -h, --help          show this help
 
 The API key is taken from --key, --key-file or the SAIA_API_KEY environment
 variable; if none of them is set, you are prompted for it. The key is persisted
 to your shell rc (as SAIA_API_KEY) so pi can resolve it at runtime.
 Existing ~/.pi/agent/models.json and settings.json are backed up to .bak-<timestamp>/ first.
+
+With 2+ keys pi talks to a local proxy (saia-keyring, 127.0.0.1:8788) that swaps
+to the next key when the active one is revoked, drained or rate limited.
 USAGE
 }
 
@@ -129,6 +140,7 @@ prompt_for_key() {
 ASSUME_YES=0
 KEY=""
 KEY_FILE=""
+KEYRING_ARGS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -y|--yes) ASSUME_YES=1; shift ;;
@@ -137,6 +149,12 @@ while [[ $# -gt 0 ]]; do
       if [[ $1 == --key ]]; then KEY="$2"; else KEY_FILE="$2"; fi
       shift 2
       ;;
+    --extra-keys|--extra-keys-file)
+      [[ $# -ge 2 ]] || { echo "ERROR: $1 requires a value" >&2; exit 2; }
+      KEYRING_ARGS+=("$1" "$2")
+      shift 2
+      ;;
+    --keyring|--no-keyring) KEYRING_ARGS+=("$1"); shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -182,6 +200,7 @@ CHILD_ARGS=()
 if [[ -n "$KEY" ]]; then CHILD_ARGS+=(--key "$KEY"); fi
 if [[ -n "$KEY_FILE" ]]; then CHILD_ARGS+=(--key-file "$KEY_FILE"); fi
 if [[ $ASSUME_YES -eq 1 ]]; then CHILD_ARGS+=(--yes); fi
+CHILD_ARGS+=(${KEYRING_ARGS[@]+"${KEYRING_ARGS[@]}"})
 # ${a[@]+"${a[@]}"}: bash 3.2 (stock macOS) calls an empty array unbound under set -u
 "$EXTRACT_DIR/src/add-saia-pi.sh" ${CHILD_ARGS[@]+"${CHILD_ARGS[@]}"}
 PSG_GEN_TAIL

@@ -72,3 +72,12 @@ MODELS_JSON_OUT="$(curl -s -H "Authorization: Bearer dummy" "http://127.0.0.1:$P
 echo "$MODELS_JSON_OUT" | grep -q "fake-model" || fail "fake endpoint did not list models"
 
 echo "PASS: models.json + settings.json written, key persisted, fake endpoint answered"
+
+# ── SAIA_BASE_URL override (used by the benchmark's local gateway) ─────
+OV="$WORK/override"; mkdir -p "$OV/home"
+HOME="$OV/home" PI_CODING_AGENT_DIR="$OV/agent" SAIA_BASE_URL="http://127.0.0.1:$PORT/v1" \
+  SAIA_API_KEY=dummy bash ../src/add-saia-pi.sh >"$WORK/override.log" 2>&1 \
+  || fail "installer failed with SAIA_BASE_URL set"
+grep -q "\"baseUrl\": \"http://127.0.0.1:$PORT/v1\"" "$OV/agent/models.json" \
+  || fail "SAIA_BASE_URL not written to models.json"
+echo "PASS: SAIA_BASE_URL override"

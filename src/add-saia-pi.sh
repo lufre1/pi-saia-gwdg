@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Base URL override for tests and local gateways (default: production SAIA).
+SAIA_BASE_URL="${SAIA_BASE_URL:-https://chat-ai.academiccloud.de/v1}"
+
 # add-saia-pi.sh — Add GWDG SAIA provider to Pi
 #
 # Reads SAIA API key from environment variable SAIA_API_KEY or --key/--key-file.
@@ -241,7 +244,7 @@ MODELS_JSON_ARRAY="${MODELS_JSON_ARRAY%,*\n}"
   echo "{"
   echo "  \"providers\": {"
   echo "    \"gwdg-saia\": {"
-  echo "      \"baseUrl\": \"https://chat-ai.academiccloud.de/v1\","
+  echo "      \"baseUrl\": \"$SAIA_BASE_URL\","
   echo "      \"api\": \"openai-completions\","
   echo "      \"apiKey\": \"\$SAIA_API_KEY\","
   echo "      \"models\": ["
@@ -274,7 +277,7 @@ chmod 600 "$SETTINGS_JSON"
 echo ""
 echo "✓ GWDG SAIA provider configured for pi!"
 echo "  Agent dir: $AGENT_DIR"
-echo "  Base URL: https://chat-ai.academiccloud.de/v1"
+echo "  Base URL: $SAIA_BASE_URL"
 echo "  Default model: gwdg-saia/$DEFAULT_MODEL"
 echo "  Models: ${#MODELS[@]} ready SAIA models"
 echo ""

@@ -19,7 +19,7 @@ This one-shot installer:
 - Writes `~/.pi/agent/models.json` registering the GWDG SAIA endpoint with 14 ready models
 - Writes `~/.pi/agent/settings.json` making SAIA the default model, so Pi runs with **no OpenAI account**
 - Persists the key as `SAIA_API_KEY` in your shell rc (Pi resolves it via env interpolation)
-- With extra keys (`SAIA_API_KEYS_EXTRA="key2,key3"`), routes Pi through a local
+- Optional, with `--keyring`: routes Pi through a local
   key-rotating proxy that swaps keys automatically when one is revoked, drained or
   rate limited (see `SETUP.md` → *Multiple keys*)
 - Works on macOS, Linux, and WSL

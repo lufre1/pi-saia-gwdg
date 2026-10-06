@@ -90,6 +90,17 @@ grep -q "\"baseUrl\": \"http://127.0.0.1:$PORT/v1\"" "$OV/agent/models.json" \
   || fail "SAIA_BASE_URL not written to models.json"
 echo "PASS: SAIA_BASE_URL override"
 
+# ── Extra keys without --keyring: SAIA directly, no proxy (opt-in only) ─
+NK="$WORK/nokeyring"; mkdir -p "$NK/home"
+HOME="$NK/home" PI_CODING_AGENT_DIR="$NK/agent" SAIA_API_KEYS_EXTRA=extra-key \
+  SAIA_API_KEY=dummy bash ../src/add-saia-pi.sh >"$WORK/nokeyring.log" 2>&1 \
+  || { cat "$WORK/nokeyring.log" >&2; fail "installer failed with extra keys but no --keyring"; }
+grep -q "\"baseUrl\": \"https://chat-ai.academiccloud.de/v1\"" "$NK/agent/models.json" \
+  || fail "extra keys alone pointed pi away from SAIA"
+[[ ! -e "$NK/home/.config/saia-keyring" ]] || fail "keyring set up without --keyring"
+grep -q "opt-in (add --keyring)" "$WORK/nokeyring.log" || fail "no note about the unused extra keys"
+echo "PASS: extra keys without --keyring: direct to SAIA, no proxy"
+
 # ── Automatic key swap: two keys, the first one revoked ───────────────
 KR="$WORK/keyring"; mkdir -p "$KR/home"
 KR_PORT="$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')"

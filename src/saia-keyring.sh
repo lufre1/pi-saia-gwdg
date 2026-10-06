@@ -5,25 +5,26 @@
 # <harness>-saia installer, next to saia_keyring.py. Edit it there and run
 # keyring/sync.sh — never edit a vendored copy.
 #
-# With 2+ SAIA keys the harness is pointed at a local proxy (saia_keyring.py on
+# Opt-in only. By default the harness talks to SAIA directly with one key and
+# depends on nothing else — an installer must work for anyone, proxy or not.
+# With --keyring the harness is pointed at a local proxy (saia_keyring.py on
 # http://127.0.0.1:8788/v1) that swaps to the next key when the active one is
 # revoked, drained or rate limited — the opencode plugin's key rotation for any
-# OpenAI-compatible harness. With a single key nothing changes: the harness
-# talks to SAIA directly, exactly as before.
+# OpenAI-compatible harness.
 #
 # The sourcing installer:
 #   1. routes its argument loop through keyring_arg for the flags below,
 #   2. calls `keyring_setup "$SAIA_KEY"` once the primary key is known,
 #   3. writes $SAIA_EFFECTIVE_BASE_URL (not $SAIA_BASE_URL) into the harness config.
 #
-# Flags:   --extra-keys k2,k3 (or env SAIA_API_KEYS_EXTRA), --extra-keys-file PATH,
-#          --keyring / --no-keyring
+# Flags:   --keyring (opt in) / --no-keyring (the default), and for --keyring:
+#          --extra-keys k2,k3 (or env SAIA_API_KEYS_EXTRA), --extra-keys-file PATH
 # Env:     SAIA_KEYRING_PORT (8788), SAIA_KEYRING_SERVICE (auto|systemd|launchd|rc|none),
 #          SAIA_KEYRING_HOME, SAIA_KEYRING_CONFIG, SAIA_KEYRING_STATE_DIR, SAIA_KEYRING_BIN_DIR
 
 KEYRING_SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KEYRING_PROD_URL="https://chat-ai.academiccloud.de/v1"
-KEYRING_MODE="${KEYRING_MODE:-auto}"
+KEYRING_MODE="${KEYRING_MODE:-}"   # on = --keyring, off = --no-keyring, "" = default (direct)
 KEYRING_EXTRA_KEYS="${KEYRING_EXTRA_KEYS:-}"
 KEYRING_EXTRA_KEYS_FILE="${KEYRING_EXTRA_KEYS_FILE:-}"
 KEYRING_HOME="${SAIA_KEYRING_HOME:-$HOME/.local/share/saia-keyring}"
@@ -36,10 +37,12 @@ SAIA_EFFECTIVE_BASE_URL="${SAIA_BASE_URL:-$KEYRING_PROD_URL}"
 # Usage lines for the installer's --help.
 keyring_usage() {
   cat <<'EOF'
-  --extra-keys <k2,k3>      Extra SAIA keys for automatic failover (or SAIA_API_KEYS_EXTRA)
-  --extra-keys-file <path>  Extra keys from a file: {"keys": [...]} (opencode's
+  --keyring                 Opt in to automatic key swap: run the local saia-keyring
+                            proxy (needs python3) and route the harness through it
+  --extra-keys <k2,k3>      With --keyring: extra SAIA keys to swap to (or SAIA_API_KEYS_EXTRA)
+  --extra-keys-file <path>  With --keyring: extra keys from {"keys": [...]} (opencode's
                             saia-gwdg-keys.json) or one key per line
-  --keyring / --no-keyring  Force the key-rotating proxy on / off (default: on with 2+ keys)
+  --no-keyring              Talk to SAIA directly with one key (the default)
 EOF
 }
 
@@ -308,28 +311,29 @@ keyring_setup() {
   local primary="$1" collected n source port
   SAIA_EFFECTIVE_BASE_URL="${SAIA_BASE_URL:-$KEYRING_PROD_URL}"
   KEYRING_ACTIVE=0
-  [[ "$KEYRING_MODE" == off ]] && return 0
-  # A test or benchmark gateway (SAIA_BASE_URL override) does its own key
-  # handling — never put the proxy in front of it unless asked to, and do no
-  # work at all there (benchmark containers may not even have python3).
-  [[ "$KEYRING_MODE" == on || "${SAIA_EFFECTIVE_BASE_URL%/}" == "$KEYRING_PROD_URL" ]] || return 0
+  if [[ "$KEYRING_MODE" != on ]]; then
+    # The default: SAIA directly, one key, nothing else to rely on. Behind a
+    # test or benchmark gateway (SAIA_BASE_URL override) stay completely silent.
+    [[ "$KEYRING_MODE" == off || "${SAIA_EFFECTIVE_BASE_URL%/}" != "$KEYRING_PROD_URL" ]] && return 0
+    local oc="$HOME/.local/share/opencode/saia-gwdg-keys.json"
+    if [[ -n "$KEYRING_EXTRA_KEYS$KEYRING_EXTRA_KEYS_FILE${SAIA_API_KEYS_EXTRA:-}" ]]; then
+      echo "Note: extra SAIA keys not used — automatic key swap is opt-in (add --keyring)."
+    elif [[ -f "$oc" ]]; then
+      echo "Tip: opencode has extra SAIA keys in $oc — re-run with"
+      echo "     --keyring --extra-keys-file $oc  to swap keys automatically (optional local proxy)."
+    fi
+    return 0
+  fi
   KEYRING_PY="$(command -v python3 || true)"
   if [[ -z "$KEYRING_PY" ]]; then
-    if [[ "$KEYRING_MODE" == on || -n "$KEYRING_EXTRA_KEYS$KEYRING_EXTRA_KEYS_FILE${SAIA_API_KEYS_EXTRA:-}" ]]; then
-      echo "WARNING: python3 not found — automatic key swap disabled, using the primary key only." >&2
-    fi
+    echo "WARNING: python3 not found — --keyring ignored, talking to SAIA directly with the primary key." >&2
     return 0
   fi
   collected="$(_keyring_collect "$primary")"
   n="$(_keyring_field "$collected" keys)"
   source="$(_keyring_field "$collected" source)"
-  if [[ "$KEYRING_MODE" == auto ]] && (( n < 2 )); then
-    local oc="$HOME/.local/share/opencode/saia-gwdg-keys.json"
-    if [[ -f "$oc" ]]; then
-      echo "Tip: opencode has extra SAIA keys in $oc — re-run with"
-      echo "     --extra-keys-file $oc  to swap keys automatically here too."
-    fi
-    return 0
+  if (( n < 2 )); then
+    echo "Note: --keyring with a single SAIA key — the proxy runs but has no key to swap to (add --extra-keys)."
   fi
   port="${SAIA_KEYRING_PORT:-$(_keyring_config_port)}"
   KR_KEYS_JSON="$collected" _keyring_write_config "$port"

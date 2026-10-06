@@ -15,15 +15,16 @@ SAIA_BASE_URL="${SAIA_BASE_URL:-https://chat-ai.academiccloud.de/v1}"
 # and persisted to the user's shell rc so Pi can resolve it at runtime. The raw
 # key is never written into models.json.
 #
-# With extra keys (SAIA_API_KEYS_EXTRA / --extra-keys / --extra-keys-file) pi
-# is pointed at the local saia-keyring proxy instead, which swaps to the next
-# key when the active one is revoked, drained or rate limited (saia-keyring.sh).
+# With --keyring (opt-in) and extra keys (SAIA_API_KEYS_EXTRA / --extra-keys /
+# --extra-keys-file) pi is pointed at the local saia-keyring proxy instead,
+# which swaps to the next key when the active one is revoked, drained or rate
+# limited (saia-keyring.sh).
 #
 # Usage:
 #   SAIA_API_KEY="your-key" ./add-saia-pi.sh
 #   ./add-saia-pi.sh --key "your-key"
 #   ./add-saia-pi.sh --key-file ~/.local/share/opencode/auth.json
-#   SAIA_API_KEYS_EXTRA="key2,key3" ./add-saia-pi.sh --key "your-key"
+#   SAIA_API_KEYS_EXTRA="key2,key3" ./add-saia-pi.sh --key "your-key" --keyring
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODELS_FILE="${SCRIPT_DIR}/models.txt"
@@ -233,7 +234,7 @@ else
   echo "WARNING: no shell rc detected — export SAIA_API_KEY yourself before running pi." >&2
 fi
 
-# ── Automatic key swap (2+ keys) ─────────────────────────────────────
+# ── Automatic key swap (--keyring) ───────────────────────────────────
 # Sets SAIA_EFFECTIVE_BASE_URL: the local proxy when it is up, else SAIA itself.
 keyring_setup "$SAIA_KEY"
 

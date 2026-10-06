@@ -3,7 +3,7 @@
 # build.sh — pack the live SAIA config into install-pi-saia-gwdg.sh
 #
 # Reads the current src/add-saia-pi.sh, src/models.txt and the vendored
-# keyring (src/saia_keyring.py, src/saia-keyring.sh — from opencode-extras) and
+# keyring (src/saia_keyring.py, src/saia-keyring.sh — from opencode-saia-gwdg) and
 # emits a single self-contained installer that can be copied to other devices.
 # Rerun this after ANY change to those files, and commit both.
 #

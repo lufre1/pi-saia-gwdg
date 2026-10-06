@@ -34,7 +34,7 @@ Or see `SETUP.md` for detailed instructions and troubleshooting.
 | `build.sh` | Regenerates the installer from source files |
 | `src/add-saia-pi.sh` | Live source script (portable key sourcing) |
 | `src/models.txt` | List of 14 ready SAIA models |
-| `src/saia_keyring.py`, `src/saia-keyring.sh` | Key-rotating proxy and its install logic, vendored from `opencode-extras/keyring/` (never edit here) |
+| `src/saia_keyring.py`, `src/saia-keyring.sh` | Key-rotating proxy and its install logic, vendored from `opencode-saia-gwdg/keyring/` (never edit here) |
 | `test/fake-saia.py` | Fake SAIA endpoint for the smoke test (not packed) |
 | `test/test-install.sh` | Smoke test that verifies the config is written (not packed) |
 
@@ -51,7 +51,7 @@ SAIA_API_KEY → install-pi-saia-gwdg.sh → [pi install] → src/add-saia-pi.sh
 ## Maintaining
 
 After changing `src/add-saia-pi.sh` or `src/models.txt`, regenerate the installer
-(the keyring files are synced in by `opencode-extras/keyring/sync.sh`, which also rebuilds):
+(the keyring files are synced in by `opencode-saia-gwdg/keyring/sync.sh`, which also rebuilds):
 
 ```bash
 ./build.sh

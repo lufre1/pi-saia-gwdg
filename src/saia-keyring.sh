@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # saia-keyring.sh — automatic SAIA key swap for a harness installer (sourced).
 #
-# Vendored byte-identical from opencode-extras/keyring/ into the src/ of every
+# Vendored byte-identical from opencode-saia-gwdg/keyring/ into the src/ of every
 # <harness>-saia installer, next to saia_keyring.py. Edit it there and run
 # keyring/sync.sh — never edit a vendored copy.
 #
